@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include "PitchShifter.h"
 
 class MengicYeatBacksAudioProcessor : public juce::AudioProcessor
 {
@@ -30,8 +31,9 @@ public:
 
 private:
     static constexpr int maxChannels = 2;
-    juce::AudioBuffer<float> pitchBuffer;
-    int pitchWrite = 0;
+    MengicPitchShifter pitchShifter;
+    juce::SmoothedValue<float> pitchRatioSmooth, delayTimeSmooth;
+    juce::SmoothedValue<float> formantSmooth, driveSmooth, widthSmooth, delaySmooth, feedbackSmooth;
     double sr = 44100.0;
     juce::Reverb reverb;
     juce::Reverb::Parameters reverbParams;
