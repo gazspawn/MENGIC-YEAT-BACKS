@@ -18,8 +18,10 @@ int main()
     if(buffer.getMagnitude(0,256)!=0)return 2;
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     editor->setSize(1100,720);
+    editor->setVisible(true);
     juce::Image image(juce::Image::RGB,1100,720,true);
     juce::Graphics graphics(image);editor->paintEntireComponent(graphics,true);
+    if(image.getPixelAt(100,100)==juce::Colours::black)return 4;
     juce::File output=juce::File::getCurrentWorkingDirectory().getChildFile("MENGIC_ALIEN_UI.png");
     juce::FileOutputStream stream(output);
     juce::PNGImageFormat png;
