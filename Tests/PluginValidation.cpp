@@ -19,9 +19,9 @@ int main()
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     editor->setSize(1100,720);
     editor->setVisible(true);
-    juce::Image image(juce::Image::RGB,1100,720,true);
+    juce::Image image(juce::Image::RGB,1100,720,true,juce::SoftwareImageType());
     juce::Graphics graphics(image);editor->paintEntireComponent(graphics,true);
-    if(image.getPixelAt(100,100)==juce::Colours::black)return 4;
+    if(image.getPixelAt(100,100)==juce::Colours::black){std::cerr<<"UI render is blank";return 4;}
     juce::File output=juce::File::getCurrentWorkingDirectory().getChildFile("MENGIC_ALIEN_UI.png");
     juce::FileOutputStream stream(output);
     juce::PNGImageFormat png;
