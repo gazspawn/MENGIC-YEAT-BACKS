@@ -40,8 +40,8 @@ void MengicYeatBacksAudioProcessor::prepareToPlay(double sampleRate, int)
     pitchBuffer.setSize(maxChannels, (int)(sr * 0.25) + 8); pitchBuffer.clear(); pitchWrite = 0;
     delayBuffer.setSize(maxChannels, (int)(sr * 1.2) + 8); delayBuffer.clear(); delayWrite = 0;
     wetSmooth.reset(sr, 0.03); outputSmooth.reset(sr, 0.03);
-    wetSmooth.setCurrentAndTargetValue(*parameters.getRawParameterValue("mix") / 100.0f);
-    outputSmooth.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(*parameters.getRawParameterValue("output")));
+    wetSmooth.setCurrentAndTargetValue(parameters.getRawParameterValue("mix")->load() / 100.0f);
+    outputSmooth.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(parameters.getRawParameterValue("output")->load()));
     reverb.reset();
 }
 void MengicYeatBacksAudioProcessor::releaseResources() {}
@@ -50,15 +50,15 @@ void MengicYeatBacksAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 {
     juce::ScopedNoDenormals noDenormals;
     const int channels = juce::jmin(buffer.getNumChannels(), maxChannels), n = buffer.getNumSamples();
-    const float pitch = *parameters.getRawParameterValue("pitch");
-    const float formant = *parameters.getRawParameterValue("formant") / 100.0f;
-    const float drive = *parameters.getRawParameterValue("drive") / 100.0f;
-    const float width = *parameters.getRawParameterValue("width") / 100.0f;
-    const float delayAmt = *parameters.getRawParameterValue("delay") / 100.0f;
-    const float feedback = *parameters.getRawParameterValue("feedback") / 100.0f * 0.82f;
-    const float rev = *parameters.getRawParameterValue("reverb") / 100.0f;
-    wetSmooth.setTargetValue(*parameters.getRawParameterValue("mix") / 100.0f);
-    outputSmooth.setTargetValue(juce::Decibels::decibelsToGain(*parameters.getRawParameterValue("output")));
+    const float pitch = parameters.getRawParameterValue("pitch")->load();
+    const float formant = parameters.getRawParameterValue("formant")->load() / 100.0f;
+    const float drive = parameters.getRawParameterValue("drive")->load() / 100.0f;
+    const float width = parameters.getRawParameterValue("width")->load() / 100.0f;
+    const float delayAmt = parameters.getRawParameterValue("delay")->load() / 100.0f;
+    const float feedback = parameters.getRawParameterValue("feedback")->load() / 100.0f * 0.82f;
+    const float rev = parameters.getRawParameterValue("reverb")->load() / 100.0f;
+    wetSmooth.setTargetValue(parameters.getRawParameterValue("mix")->load() / 100.0f);
+    outputSmooth.setTargetValue(juce::Decibels::decibelsToGain(parameters.getRawParameterValue("output")->load()));
     const int pitchLen = pitchBuffer.getNumSamples();
     const float ratio = std::pow(2.0f, pitch / 12.0f);
     const float shiftRate = (ratio - 1.0f) * 0.65f;
