@@ -76,8 +76,8 @@ MengicYeatBacksAudioProcessorEditor::MengicYeatBacksAudioProcessorEditor(MengicY
 {
     setLookAndFeel(&look);
     addAndMakeVisible(canvas);
-    const char* ids[]={"convDry","convWet","revDry","revWet","revMix","revSize","enhance","delayMs","delayWet","transparency"};
-    const char* names[]={"DRY","WET","DRY","WET","MIX","SIZE","AMOUNT","TIME","WET","TRANSPARENCY"};
+    const char* ids[]={"convDry","convWet","revDry","revWet","revMix","revSize","flangusRate","delayMs","delayWet","flangusDepth","flangusMix","transpose"};
+    const char* names[]={"DRY","WET","DRY","WET","MIX","SIZE","RATE","TIME","WET","DEPTH","MIX","SEMITONES"};
     for(size_t i=0;i<knobs.size();++i) {
         knobs[i]=std::make_unique<Knob>(names[i],i==7);
         canvas.addAndMakeVisible(*knobs[i]);
@@ -85,8 +85,15 @@ MengicYeatBacksAudioProcessorEditor::MengicYeatBacksAudioProcessorEditor(MengicY
             p.parameters,ids[i],knobs[i]->slider);
     }
     knobs[7]->slider.setTooltip("Delay time in milliseconds. Feedback is fixed at 32%.");
-    knobs[9]->slider.setTooltip("Blend back the original vocal: 0% = processed, 100% = original.");
-    const char* toggles[]={"convOn","revOn","enhanceOn","delayOn","transparencyOn","bypass"};
+    knobs[6]->slider.setTextValueSuffix(" Hz");
+    knobs[6]->slider.setDoubleClickReturnValue(true,.4);
+    knobs[6]->slider.setTooltip("Modulation speed in Hz.");
+    knobs[11]->slider.setTextValueSuffix(" st");
+    knobs[11]->slider.setDoubleClickReturnValue(true,0);
+    knobs[11]->slider.setTooltip("Pitch shift -12 to +12 semitones. Changes timbre too; no automatic tuning or formant preservation.");
+    knobs[9]->slider.setTooltip("Chorus / flanger modulation depth.");
+    knobs[10]->slider.setTooltip("Blend of dry and modulated signal.");
+    const char* toggles[]={"convOn","revOn","flangusOn","delayOn","transposeOn","bypass"};
     for(size_t i=0;i<switches.size();++i) {
         canvas.addAndMakeVisible(switches[i]);
         buttons[i]=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.parameters,toggles[i],switches[i]);
@@ -102,9 +109,11 @@ MengicYeatBacksAudioProcessorEditor::MengicYeatBacksAudioProcessorEditor(MengicY
     }};
     convType.addItemList({"Vocal Chamber","Glass Cell","Alien Vessel"},1);
     revType.addItemList({"Acid Hall","Dark Orbit","Soft Nebula"},1);
-    for(auto* combo:{&presets,&convType,&revType})canvas.addAndMakeVisible(*combo);
+    flangusMode.addItemList({"Chorus","Flanger"},1);
+    for(auto* combo:{&presets,&convType,&revType,&flangusMode})canvas.addAndMakeVisible(*combo);
     convChoice=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.parameters,"convType",convType);
     revChoice=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.parameters,"revType",revType);
+    flangusChoice=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.parameters,"flangusMode",flangusMode);
     setResizable(true,true);
     setResizeLimits(825,540,1650,1080);
     if(auto* c=getConstrainer())c->setFixedAspectRatio(1100.0/720.0);
@@ -119,12 +128,14 @@ void MengicYeatBacksAudioProcessorEditor::resized()
     canvas.setTransform(juce::AffineTransform::scale((float)getWidth()/1100.0f));
     presets.setBounds(535,27,320,37);switches[5].setBounds(895,27,130,38);
     convType.setBounds(80,145,360,35);revType.setBounds(520,145,500,35);
+    flangusMode.setBounds(220,432,145,27);
     const juce::Rectangle<int> knobBounds[]={
         {100,200,145,170},{275,200,145,170},
         {500,210,130,160},{635,210,130,160},{770,210,130,160},{905,210,130,160},
-        {125,480,170,175},{445,485,145,170},{600,485,145,170},{835,480,170,175}};
+        {70,485,125,170},{505,485,125,170},{650,485,125,170},{200,485,125,170},
+        {330,485,125,170},{845,480,170,175}};
     for(size_t i=0;i<knobs.size();++i)knobs[i]->setBounds(knobBounds[i]);
-    const juce::Rectangle<int> toggleBounds[]={{395,97,55,37},{985,97,55,37},{290,425,55,37},{690,425,55,37},{985,425,55,37}};
+    const juce::Rectangle<int> toggleBounds[]={{395,97,55,37},{985,97,55,37},{395,425,55,37},{720,425,55,37},{985,425,55,37}};
     for(size_t i=0;i<5;++i)switches[i].setBounds(toggleBounds[i]);
 }
 void MengicYeatBacksAudioProcessorEditor::drawTube(juce::Graphics& g,juce::Rectangle<float> r)
@@ -158,8 +169,8 @@ void MengicYeatBacksAudioProcessorEditor::paint(juce::Graphics& graphics)
     g.setColour(lime);g.setFont(juce::Font(24.f,juce::Font::bold));
     g.drawText("ALIEN",250,27,105,40,juce::Justification::centredLeft);
     g.setColour(muted);g.setFont(16.f);g.drawText("/ VOCAL LAB",355,27,150,40,juce::Justification::centredLeft);
-    const juce::Rectangle<float> panels[]={{55,92,410,305},{485,92,565,305},{55,418,305,263},{380,418,380,263},{780,418,270,263}};
-    const char* titles[]={"CONVOLVER","REVERB","ENHANCER","DELAY","TRANSPARENCY"};
+    const juce::Rectangle<float> panels[]={{55,92,410,305},{485,92,565,305},{55,418,410,263},{485,418,305,263},{810,418,240,263}};
+    const char* titles[]={"CONVOLVER","REVERB","FLANGUS","DELAY","TRANSPOSE"};
     for(size_t i=0;i<5;++i) {
         auto r=panels[i];
         g.setGradientFill(juce::ColourGradient(juce::Colour(0xff1c2119),r.getTopLeft(),juce::Colour(0xff10150e),r.getBottomRight(),false));
@@ -172,5 +183,5 @@ void MengicYeatBacksAudioProcessorEditor::paint(juce::Graphics& graphics)
     }
     drawTube(g,{21,115,19,264});drawTube(g,{1060,478,18,160});
     g.setColour(muted);g.setFont(10.f);
-    g.drawText("MENGIC ALIEN  /  2.0",60,687,500,18,juce::Justification::centredLeft);
+    g.drawText("MENGIC ALIEN  /  2.1",60,687,500,18,juce::Justification::centredLeft);
 }

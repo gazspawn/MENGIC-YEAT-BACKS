@@ -6,12 +6,13 @@ int main()
     MengicYeatBacksAudioProcessor p;
     p.prepareToPlay(48000,256);
     for(int i=0;i<4;++i)p.applyPreset(i);
-    auto* parameter=p.parameters.getParameter("transparency");
-    parameter->setValueNotifyingHost(parameter->convertTo0to1(37.0f));
+    auto* parameter=p.parameters.getParameter("transpose");
+    parameter->setValueNotifyingHost(parameter->convertTo0to1(5.0f));
     juce::MemoryBlock state;p.getStateInformation(state);
     MengicYeatBacksAudioProcessor restored;
     restored.setStateInformation(state.getData(),(int)state.getSize());
-    if(std::abs(restored.parameters.getRawParameterValue("transparency")->load()-37.f)>.01f)return 1;
+    if(std::abs(restored.parameters.getRawParameterValue("transpose")->load()-5.f)>.01f)return 1;
+    if(p.getLatencySamples()<=0)return 5;
     p.applyPreset(0);
     juce::AudioBuffer<float> buffer(2,256);juce::MidiBuffer midi;
     buffer.clear();p.processBlock(buffer,midi);

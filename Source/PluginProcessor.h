@@ -29,6 +29,6 @@ public:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 private:
     AlienDSP dsp;
-    std::array<std::atomic<float>*,18> values{};
+    std::array<std::atomic<float>*,21> values{};
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MengicYeatBacksAudioProcessor)
 };

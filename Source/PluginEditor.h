@@ -30,12 +30,12 @@ private:
     MengicYeatBacksAudioProcessor& processor;
     AlienLook look;
     juce::Component canvas;
-    std::array<std::unique_ptr<Knob>,10> knobs;
-    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>,10> sliders;
+    std::array<std::unique_ptr<Knob>,12> knobs;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>,12> sliders;
     std::array<juce::ToggleButton,6> switches;
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>,6> buttons;
-    juce::ComboBox presets,convType,revType;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> convChoice,revChoice;
+    juce::ComboBox presets,convType,revType,flangusMode;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> convChoice,revChoice,flangusChoice;
     juce::TooltipWindow tips;
     float phase=0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MengicYeatBacksAudioProcessorEditor)

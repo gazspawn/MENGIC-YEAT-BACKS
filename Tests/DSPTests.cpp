@@ -23,35 +23,33 @@ int main()
         for(int i=0;i<10000;++i) {
             float input=.1f*(float)std::sin(i*.1),l=input,r=-input;
             d.tick(l,r,channels);
-            check(l==input,"Bypass changed input");
-            if(channels==2)check(r==-input,"Stereo bypass changed input");
-        }
-        d.prepare(rate);s.bypass=false;s.transparency=1;d.set(s);
-        for(int i=0;i<10000;++i) {
-            float l=.1f,r=.1f;d.tick(l,r,channels);
-            check(std::abs(l-.1f)<1e-6f,"100% transparency is not dry");
+            const int j=i-d.getLatencySamples();
+            const float expected=j<0?0.f:.1f*(float)std::sin(j*.1);
+            check(l==expected,"Bypass latency mismatch");
+            if(channels==2)check(r==-expected,"Stereo bypass changed input");
         }
         d.prepare(rate);s=AlienDSP::Settings{};d.set(s);
         check(render(d,10000,channels,0)==0,"Silence generated noise");
-        d.prepare(rate);s.enhance=1;s.convWet=1;s.delayWet=1;s.revWet=1;s.revMix=1;s.revSize=1;s.transparency=0;d.set(s);
+        d.prepare(rate);s.flangusDepth=1;s.flangusMix=1;s.transpose=12;s.convWet=1;s.delayWet=1;s.revWet=1;s.revMix=1;s.revSize=1;d.set(s);
         render(d,(int)(rate*2),channels,.8f);
         for(int i=0;i<200;++i) {
             s.convType=i%3;s.revType=i%3;s.bypass=i%2==0;s.convOn=i%3==0;
-            s.delayMs=i%2==0?40.f:1000.f;s.transparency=(i%2==0)?0.f:1.f;
+            s.delayMs=i%2==0?40.f:1000.f;s.transpose=i%2==0?-12.f:12.f;s.flangusMode=i%2;s.flangusRate=i%2==0?.05f:5.f;
             d.set(s);render(d,128,channels);
         }
         d.prepare(rate);d.set(s);
         check(render(d,10000,channels,0)==0,"prepare did not reset DSP");
     }
     // Each audible module must change the signal relative to an all-off chain.
-    for(int module=0;module<4;++module) {
+    for(int module=0;module<5;++module) {
         AlienDSP a,b;a.prepare(48000);b.prepare(48000);
-        AlienDSP::Settings off;off.convOn=off.revOn=off.enhanceOn=off.delayOn=false;off.transparency=0;
+        AlienDSP::Settings off;off.convOn=off.revOn=off.flangusOn=off.delayOn=false;off.transposeOn=false;
         auto on=off;
         if(module==0){on.convOn=true;on.convWet=.8f;}
         if(module==1){on.revOn=true;on.revWet=1;on.revMix=1;}
-        if(module==2){on.enhanceOn=true;on.enhance=1;}
+        if(module==2){on.flangusOn=true;on.flangusMix=1;}
         if(module==3){on.delayOn=true;on.delayWet=1;}
+        if(module==4){on.transposeOn=true;on.transpose=7;}
         a.set(off);b.set(on);double difference=0;
         for(int i=0;i<96000;++i) {
             float l=.1f*(float)std::sin(i*.083),r=l,al=l,ar=r;
@@ -59,5 +57,23 @@ int main()
         }
         check(difference>1,"Module had no audible effect");
     }
-    std::cout<<"PASS: sample rates, mono/stereo, bypass, transparency, silence, reset, extreme settings, automation, all effects\n";
+    // Frequency direction and absence of discontinuities across repeated pitch-buffer wraps.
+    for(float semitones:{-12.f,0.f,5.f,12.f}) {
+        AlienDSP d;d.prepare(48000);
+        AlienDSP::Settings s;s.convOn=s.revOn=s.flangusOn=s.delayOn=false;s.transpose=semitones;d.set(s);
+        float previous=0,maxStep=0;int crossings=0;
+        for(int i=0;i<144000;++i) {
+            float l=.5f*(float)std::sin(6.283185307179586*440*i/48000),r=l;
+            d.tick(l,r,2);
+            if(i>=48000) {
+                if(previous<=0 && l>0)++crossings;
+                maxStep=std::max(maxStep,std::abs(l-previous));
+            }
+            previous=l;
+        }
+        const double measured=crossings/2.0,expected=440*std::pow(2.0,semitones/12.0);
+        check(std::abs(measured-expected)<15,"Transpose frequency incorrect");
+        check(maxStep<.08f,"Transpose discontinuity");
+    }
+    std::cout<<"PASS: sample rates, mono/stereo, bypass latency, transpose frequency and continuity, silence, reset, extreme settings, automation, all effects\n";
 }

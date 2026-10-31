@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdint>
+#include "PitchShifter.h"
 
 // Streaming DSP: prepare allocates all storage; tick performs no allocations.
 class AlienDSP
@@ -12,9 +13,10 @@ public:
     struct Settings
     {
         float convDry=1, convWet=.25f, revDry=1, revWet=.4f, revMix=.3f, revSize=.6f;
-        float enhance=.2f, delayMs=280, delayWet=.18f, transparency=.25f;
-        bool convOn=true, revOn=true, enhanceOn=true, delayOn=true, transparencyOn=true, bypass=false;
-        int convType=0, revType=0;
+        float flangusRate=.4f, delayMs=280, delayWet=.18f, flangusDepth=.5f;
+        float flangusMix=.35f, transpose=0;
+        bool convOn=true, revOn=true, flangusOn=true, delayOn=true, transposeOn=true, bypass=false;
+        int convType=0, revType=0, flangusMode=0;
     };
     void prepare(double sampleRate)
     {
@@ -22,6 +24,11 @@ public:
         ringLength=(int)(sr*1.1)+8;
         for(auto& r:history) r.assign((size_t)ringLength,0);
         for(auto& r:echo) r.assign((size_t)ringLength,0);
+        for(auto& r:flange) r.assign((size_t)ringLength,0);
+        for(auto& r:inputHistory) r.assign((size_t)ringLength,0);
+        pitch.prepare(sr);
+        latency=(int)std::round(sr*.1025);
+        lfo=0;
         const double times[4]={.0297,.0371,.0411,.0437};
         for(int c=0;c<2;++c) {
             for(int k=0;k<4;++k) comb[(size_t)c][(size_t)k].prepare((int)(sr*(times[k]+c*.0013)));
@@ -45,25 +52,50 @@ public:
     }
     void set(const Settings& s)
     {
-        target={s.convDry,s.convWet,s.revDry,s.revWet,s.revMix,s.revSize,s.enhance,
-                s.delayMs,s.delayWet,s.transparency,s.convOn?1.f:0.f,s.revOn?1.f:0.f,
-                s.enhanceOn?1.f:0.f,s.delayOn?1.f:0.f,s.transparencyOn?1.f:0.f,s.bypass?1.f:0.f,
+        target={s.convDry,s.convWet,s.revDry,s.revWet,s.revMix,s.revSize,s.flangusRate,
+                s.delayMs,s.delayWet,s.flangusDepth,s.convOn?1.f:0.f,s.revOn?1.f:0.f,
+                s.flangusOn?1.f:0.f,s.delayOn?1.f:0.f,s.transposeOn?1.f:0.f,s.bypass?1.f:0.f,
                 s.convType==0?1.f:0.f,s.convType==1?1.f:0.f,s.convType==2?1.f:0.f,
-                s.revType==0?0.f:(s.revType==1?.5f:1.f)};
+                s.revType==0?0.f:(s.revType==1?.5f:1.f),
+                s.flangusMix,(float)std::pow(2.0,s.transpose/12.0),s.flangusMode==0?0.f:1.f};
         if(!ready) {current=target; ready=true;}
     }
     void tick(float& left,float& right,int channels)
     {
         for(size_t i=0;i<current.size();++i) current[i]+=smoothing*(target[i]-current[i]);
         const auto& p=current;
-        const float dry[2]={finite(left),finite(channels==1?left:right)};
+        const float input[2]={finite(left),finite(channels==1?left:right)};
+        float pitched[2]={input[0],input[1]};
+        pitch.process(pitched,2,p[21]);
+        float dry[2]{};
+        for(int c=0;c<2;++c) {
+            inputHistory[(size_t)c][(size_t)write]=input[c];
+            int pos=write-latency;if(pos<0)pos+=ringLength;
+            dry[c]=inputHistory[(size_t)c][(size_t)pos];
+        }
+        const float shiftAmount=std::min(1.f,std::abs(p[21]-1.f)*200.f);
+        lfo+=p[6]/sr;
+        lfo-=std::floor(lfo);
         float result[2]{};
         for(int c=0;c<2;++c) {
             const size_t ch=(size_t)c;
-            float x=dry[c];
-            const float g=1.0f+7.0f*p[6];
-            const float saturated=std::tanh(x*g)/std::sqrt(g);
-            x=blend(x,saturated,p[12]*p[6]);
+            float x=blend(dry[c],pitched[c],p[14]*shiftAmount);
+            const float mode=p[22];
+            const float centreMs=blend(15.f,2.0f,mode);
+            const float depthMs=blend(7.f,1.7f,mode)*p[9];
+            float voice=0;
+            for(int v=0;v<3;++v) {
+                const double phase=lfo+(c==0?0.0:.25)+(double)v/3.0;
+                const float modMs=centreMs+(1-mode)*v*.7f+depthMs*(float)std::sin(6.283185307179586*phase);
+                float fp=(float)write-(float)sr*modMs*.001f;
+                if(fp<0)fp+=(float)ringLength;
+                const int fi=(int)fp;
+                const float ff=fp-(float)fi;
+                voice+=(flange[ch][(size_t)fi]*(1-ff)+flange[ch][(size_t)((fi+1)%ringLength)]*ff)/3.f;
+            }
+            flange[ch][(size_t)write]=x+voice*(.15f+.3f*mode);
+            const float flanged=x*(1-.5f*p[20])+voice*.5f*p[20];
+            x=blend(x,flanged,p[12]);
             history[ch][(size_t)write]=x;
             float convolved=0;
             for(int m=0;m<3;++m) {
@@ -90,14 +122,13 @@ public:
             for(int k=0;k<2;++k) space=allpass[ch][(size_t)k].diffuse(space);
             const float reverbed=blend(x,x*p[2]+space*p[3],p[4]);
             x=blend(x,reverbed,p[11]);
-            // Transparency means original signal: 100% is unprocessed.
-            x=blend(x,dry[c],p[9]*p[14]);
             result[c]=blend(x,dry[c],p[15]);
         }
         left=channels==1?(result[0]+result[1])*.5f:result[0];
         right=result[1];
         if(++write==ringLength) write=0;
     }
+int getLatencySamples() const {return latency;}
 private:
     struct Delay
     {
@@ -125,8 +156,11 @@ private:
     int ringLength=0,write=0;
     bool ready=false;
     float smoothing=0;
-    std::array<float,20> target{},current{};
-    std::array<std::vector<float>,2> history,echo;
+    std::array<float,23> target{},current{};
+    std::array<std::vector<float>,2> history,echo,flange,inputHistory;
+    MengicPitchShifter pitch;
+    int latency=0;
+    double lfo=0;
     std::array<std::array<Delay,4>,2> comb;
     std::array<std::array<Delay,2>,2> allpass;
     std::array<std::array<std::array<int,24>,2>,3> taps{};
