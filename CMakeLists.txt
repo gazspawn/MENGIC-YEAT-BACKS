@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MENGIC_YEAT_BACKS VERSION 1.0.0)
+project(MENGIC_YEAT_BACKS VERSION 2.0.0)
 
 include(FetchContent)
 FetchContent_Declare(JUCE
@@ -10,11 +10,11 @@ FetchContent_MakeAvailable(JUCE)
 
 juce_add_plugin(MENGIC_YEAT_BACKS
     COMPANY_NAME "MENGIC"
-    BUNDLE_ID "com.mengic.yeatbacks"
+    BUNDLE_ID "com.mengic.alien"
     PLUGIN_MANUFACTURER_CODE MNGC
-    PLUGIN_CODE MYBK
+    PLUGIN_CODE MYAL
     FORMATS VST3
-    PRODUCT_NAME "MENGIC - YEAT BACKS"
+    PRODUCT_NAME "MENGIC ALIEN"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
@@ -39,3 +39,17 @@ target_link_libraries(MENGIC_YEAT_BACKS PRIVATE
     PUBLIC juce::juce_recommended_config_flags
            juce::juce_recommended_lto_flags
            juce::juce_recommended_warning_flags)
+
+enable_testing()
+add_executable(AlienDSPTests Tests/DSPTests.cpp)
+target_compile_features(AlienDSPTests PRIVATE cxx_std_17)
+add_test(NAME AlienDSPTests COMMAND AlienDSPTests)
+
+juce_add_console_app(AlienValidation PRODUCT_NAME "AlienValidation")
+target_sources(AlienValidation PRIVATE Tests/PluginValidation.cpp)
+target_include_directories(AlienValidation PRIVATE Source
+    "${CMAKE_CURRENT_BINARY_DIR}/MENGIC_YEAT_BACKS_artefacts/JuceLibraryCode")
+target_compile_features(AlienValidation PRIVATE cxx_std_17)
+target_compile_definitions(AlienValidation PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(AlienValidation PRIVATE MENGIC_YEAT_BACKS juce::juce_audio_utils juce::juce_dsp)
+add_test(NAME AlienValidation COMMAND AlienValidation)

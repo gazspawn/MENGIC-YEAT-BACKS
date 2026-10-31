@@ -1,49 +1,35 @@
-# MENGIC - YEAT BACKS (VST3 source project)
+# MENGIC ALIEN / VOCAL LAB 2.0
+VST3 для Windows x64 / FL Studio, интерфейс с зелёной жидкостью.
 
-Проект JUCE для сборки VST3-плагина под Windows / FL Studio.
+## Установка
+В GitHub Actions откройте последнюю успешную сборку, в Artifacts скачайте MENGIC-ALIEN-Windows-VST3.
+Распакуйте ZIP. Скопируйте целиком папку MENGIC ALIEN.vst3 в C:\Program Files\Common Files\VST3\.
+В FL Studio: Options → Manage plugins → Find installed plugins.
+Добавьте MENGIC ALIEN в слот эффектов микшера.
+Новый плагин имеет отдельный ID и не заменяет MENGIC - YEAT BACKS в старых проектах.
 
-## Что внутри
-- Pitch: гранулярный pitch-shift с диапазоном -12..+12 полутонов
-- Formant: дополнительная подчёркивающая верх/середину окраска (приближённый формантный эффект, не полноценный formant-preserving shifter)
-- Drive: мягкий клиппинг / сатурация
-- Width: Mid/Side ширина
-- Delay + Feedback
-- Reverb
-- Mix и Output
-- Сохранение параметров проекта/пресета хостом
+## Эффекты
+- Convolver: свёртка с тремя оригинальными встроенными короткими импульсами ранних отражений; Dry/Wet.
+- Reverb: алгоритмическая стереореверберация; Dry/Wet/Mix/Size и три варианта демпфирования.
+- Enhancer: оригинальная мягкая сатурация. Не копия Soundgoodizer.
+- Delay: плавное время 40–1000 мс, Wet; фиксированный feedback 32%, без синхронизации с BPM.
+- Transparency: добавление исходного вокала. 0% — обработанный, 100% — исходный.
+- У каждого блока отдельный выключатель; глобальный Bypass переключается плавно.
 
-## Сборка VST3 в Windows
-1. Установите **Visual Studio 2022** (рабочая нагрузка «Разработка классических приложений на C++»), **CMake** и **Git**.
-2. Откройте PowerShell в папке проекта.
-3. Выполните:
+Нет эквалайзера, компрессора, Output, Noise Gate и изменения высоты тона.
+Встроенные пресеты: Green Chamber, Deep Orbit, Clear Mist, Init.
+Двойной щелчок сбрасывает ручку; числовые значения можно вводить вручную.
+Настройки сохраняются в проекте хоста. Размер окна изменяется с сохранением пропорций.
+Колбы анимируются только при открытом интерфейсе.
+Это оригинальная обработка; точная цепочка и импульсы исходного пресета со скриншота неизвестны.
+Зелёная жидкость и поверхности нарисованы средствами JUCE; интерфейс адаптирован по согласованному макету.
+При экстремальном усилении нескольких эффектов контролируйте уровень на микшере FL Studio.
 
-```powershell
-cmake -B build -S . -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release
-```
+## Сборка
+CMake 3.22+, Visual Studio 2022 C++, Git. JUCE 8.0.6 загружается автоматически.
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release --target MENGIC_YEAT_BACKS_VST3 AlienDSPTests AlienValidation --parallel 2
+ctest --test-dir build -C Release --output-on-failure
 
-CMake скачает JUCE 8.0.6 из официального репозитория. Для этого при первой сборке нужен интернет.
-
-4. VST3 появится примерно здесь:
-`build/MENGIC_YEAT_BACKS_artefacts/Release/VST3/MENGIC - YEAT BACKS.vst3`
-
-5. Скопируйте папку `.vst3` в стандартную папку VST3:
-`C:\Program Files\Common Files\VST3\`
-
-6. В FL Studio откройте **Options → Manage plugins → Find installed plugins** и найдите `MENGIC - YEAT BACKS`.
-
-## Стартовые настройки
-Для широких бэков/адлибов начните с:
-- Pitch: +5 semitones
-- Formant: 25–35%
-- Drive: 25–40%
-- Width: 140–170%
-- Delay: 10–25%
-- Feedback: 20–35%
-- Reverb: 15–30%
-- Mix: 65–80%
-
-На основном вокале уменьшайте Mix; лучше всего использовать на отдельном дубле/адлибах.
-
-## Важно
-Это исходный проект, а не уже собранный бинарный `.vst3`. Для компиляции нужны Windows, Visual Studio, CMake, Git и интернет для загрузки JUCE. Эффект — оригинальная обработка в направлении современного rage-вокала, а не копия конкретной записи или цепочки артиста.
+## Лицензирование
+Проект использует JUCE; условия его распространения необходимо соблюдать.
